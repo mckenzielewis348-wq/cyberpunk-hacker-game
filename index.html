@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Cyber Hack City</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background-color: #050608;
+      font-family: 'Courier New', Courier, monospace;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+      color: #00f0ff;
+    }
+    #game-container {
+      position: relative;
+      width: 1000px;
+      height: 600px;
+      box-shadow: 0 0 30px rgba(0, 240, 255, 0.2);
+      border: 1px solid #1a2936;
+    }
+    canvas { display: block; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+</head>
+<body>
+
+<div id="game-container"></div>
+
+<script>
+class CityHackScene extends Phaser.Scene {
+  constructor() {
+    super({ key: 'CityHackScene' });
+  }
+
+  create() {
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+
+    // 1. Background Grid & Dark City Map
+    this.cameras.main.setBackgroundColor('#0a0c12');
+    this.drawIsometricGrid();
+
+    // 2. Isometric City Buildings (Neon Blocks)
+    this.createIsometricBuilding(250, 420, 70, 100, 0x00f0ff);
+    this.createIsometricBuilding(350, 480, 80, 120, 0xffaa00);
+    this.createIsometricBuilding(750, 420, 90, 140, 0x00f0ff);
+    this.createIsometricBuilding(850, 320, 70, 110, 0x00f0ff);
+    this.createIsometricBuilding(150, 280, 80, 90,  0xff0055);
+
+    // 3. Top HUD Dashboard Bar
+    this.createTopHUD(width);
+
+    // 4. Centered "HACK SECURITY" Logic Gate Overlay
+    this.createLogicGatePuzzle(width / 2, height / 2);
+  }
+
+  drawIsometricGrid() {
+    const graphics = this.add.graphics();
+    graphics.lineStyle(1, 0x152232, 0.5);
+
+    // Draw grid lines
+    for (let x = -400; x < 1200; x += 40) {
+      graphics.beginPath();
+      graphics.moveTo(x, 0);
+      graphics.lineTo(x + 600, 600);
+      graphics.strokePath();
+
+      graphics.beginPath();
+      graphics.moveTo(x, 600);
+      graphics.lineTo(x + 600, 0);
+      graphics.strokePath();
+    }
+  }
+
+  createIsometricBuilding(x, y, w, h, neonColor) {
+    const g = this.add.graphics();
+
+    // Dark building faces
+    g.fillStyle(0x101721, 0.9);
+    g.fillTriangle(x, y, x - w, y - w/2, x, y - w);
+    g.fillStyle(0x0c1118, 0.9);
+    g.fillTriangle(x, y, x + w, y - w/2, x, y - w);
+
+    // Extruded Top
+    g.fillStyle(0x182330, 0.95);
+    g.fillTriangle(x, y - h, x - w, y - h - w/2, x, y - h - w);
+    g.fillTriangle(x, y - h, x + w, y - h - w/2, x, y - h - w);
+
+    // Neon Trim Highlights
+    g.lineStyle(2, neonColor, 0.8);
+    g.strokeLineShape(new Phaser.Geom.Line(x, y - h, x - w, y - h - w/2));
+    g.strokeLineShape(new Phaser.Geom.Line(x, y - h, x + w, y - h - w/2));
+    g.strokeLineShape(new Phaser.Geom.Line(x, y - h - w, x - w, y - h - w/2));
+    g.strokeLineShape(new Phaser.Geom.Line(x, y - h - w, x + w, y - h - w/2));
+  }
+
+  createTopHUD(width) {
+    const hud = this.add.graphics();
+    hud.fillStyle(0x080a0e, 0.85);
+    hud.fillRect(0, 0, width, 55);
+    hud.lineStyle(1, 0x00f0ff, 0.3);
+    hud.strokeLineShape(new Phaser.Geom.Line(0, 55, width, 55));
+
+    // HUD Text
+    this.add.text(20, 15, '🔧 22% PC   100% MOBILE', { font: '14px Courier', fill: '#00f0ff' });
+    this.add.text(width - 150, 15, '+ 971S', { font: 'bold 16px Courier', fill: '#ffaa00' });
+    this.add.text(width - 250, 15, '16 DAYS', { font: '14px Courier', fill: '#ffffff' });
+  }
+
+  createLogicGatePuzzle(centerX, centerY) {
+    // Dark Modal Box
+    const panel = this.add.graphics();
+    panel.fillStyle(0x06080c, 0.95);
+    panel.fillRect(centerX - 160, centerY - 140, 320, 260);
+    panel.lineStyle(2, 0x00f0ff, 0.8);
+    panel.strokeRect(centerX - 160, centerY - 140, 320, 260);
+
+    // Title / Header Text
+    this.add.text(centerX - 140, centerY + 80, 'HACK SECURITY', {
+      font: 'bold 22px Courier',
+      fill: '#ffffff'
+    });
+
+    // Close Button X
+    const closeBtn = this.add.text(centerX + 130, centerY - 130, '✕', {
+      font: '20px Courier',
+      fill: '#ffffff'
+    }).setInteractive({ useHandCursor: true });
+
+    // Interactive Logic Gate Circuit Nodes
+    const drawNode = (x, y, active = false) => {
+      const node = this.add.graphics();
+      node.fillStyle(active ? 0x00ffaa : 0x223344, 1);
+      node.fillRect(x - 8, y - 8, 16, 16);
+      node.lineStyle(1, 0xffffff, 0.8);
+      node.strokeRect(x - 8, y - 8, 16, 16);
+    };
+
+    // Node Inputs
+    drawNode(centerX - 100, centerY - 80, true);
+    drawNode(centerX - 100, centerY - 30, false);
+    drawNode(centerX - 100, centerY + 20, false);
+
+    drawNode(centerX + 100, centerY - 80, false);
+    drawNode(centerX + 100, centerY - 30, false);
+    drawNode(centerX + 100, centerY + 20, false);
+
+    // Gate Labels
+    this.add.text(centerX - 60, centerY - 75, 'OR', { font: '12px Courier', fill: '#88aacc' });
+    this.add.text(centerX - 60, centerY - 25, 'AND', { font: '12px Courier', fill: '#88aacc' });
+    this.add.text(centerX + 40, centerY - 75, 'AND', { font: '12px Courier', fill: '#88aacc' });
+    this.add.text(centerX + 40, centerY - 25, 'OR', { font: '12px Courier', fill: '#88aacc' });
+
+    // Center HACK Output
+    this.add.text(centerX - 25, centerY + 30, 'HACK', { font: 'bold 16px Courier', fill: '#00f0ff' });
+  }
+}
+
+const config = {
+  type: Phaser.AUTO,
+  width: 1000,
+  height: 600,
+  parent: 'game-container',
+  scene: [CityHackScene]
+};
+
+const game = new Phaser.Game(config);
+</script>
+
+</body>
+</html>
