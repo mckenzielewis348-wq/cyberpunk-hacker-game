@@ -2,7 +2,14 @@
 
 An isometric cyberpunk city management game built with **Phaser 3** and **JavaScript**. Command data centers, breach high-security telecom nodes using logic gates, manage threat levels, and take over PC and Mobile networks.
 
-![Cyber City Manager Gameplay](https://img.shields.io/badge/Status-Playable-00f0ff?style=for-the-badge) 
+![Cyber City Manager Gameplay](https://img.shields.io/badge/Status-Playable-00f0ff?style=for-the-badge)
+
+---
+
+## 🚀 Live Demo & Deployment
+
+Play the game directly in your browser:
+👉 **[Launch Cyber City Manager](https://mckenzielewis348-wq.github.io/cyberpunk-hacker-game/)**
 
 ---
 
@@ -40,15 +47,10 @@ In **Cyber City Manager**, you act as a rogue system operator seeking complete c
 
 ---
 
-## 🚀 Live Demo & Deployment
-
-You can play the live version directly via GitHub Pages:
-`https://<your-github-username>.github.io/<your-repo-name>/`
-
-### Local Setup Instructions
+## 💻 Local Setup Instructions
 
 No build process or installation is required!
 
 1. Clone this repository:
    ```bash
-   git clone [https://github.com/](https://github.com/)<your-github-username>/<your-repo-name>.git
+   git clone [https://github.com/mckenzielewis348-wq/cyberpunk-hacker-game.git](https://github.com/mckenzielewis348-wq/cyberpunk-hacker-game.git)
