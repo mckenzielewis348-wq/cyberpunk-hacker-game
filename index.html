@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Cyber City Manager - Hack Edition</title>
+  <title>Cyber City Manager - Save System Edition</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -85,18 +85,75 @@ class CityManagerScene extends Phaser.Scene {
   }
 
   init() {
-    this.money = 500;
-    this.pcPercent = 12;
-    this.mobilePercent = 25;
-    this.daysPassed = 1;
     this.pulseTimer = 0;
 
-    this.buildings = [
+    // Default Game State
+    const defaultBuildings = [
       { id: 1, name: 'Data Center Alpha', isoX: 250, isoY: 350, w: 70, h: 90, color: 0x00f0ff, level: 1, cost: 200, income: 15, pcBoost: 5, mobileBoost: 2, requiresHack: false },
       { id: 2, name: 'Telecom Array',    isoX: 450, isoY: 420, w: 60, h: 120, color: 0xffaa00, level: 0, cost: 450, income: 35, pcBoost: 2, mobileBoost: 15, requiresHack: true },
       { id: 3, name: 'Security Hub',     isoX: 700, isoY: 320, w: 80, h: 110, color: 0xff0055, level: 0, cost: 800, income: 75, pcBoost: 12, mobileBoost: 8, requiresHack: true },
       { id: 4, name: 'Mainframe Vault',  isoX: 850, isoY: 480, w: 90, h: 140, color: 0x00ffaa, level: 0, cost: 1500, income: 180, pcBoost: 20, mobileBoost: 20, requiresHack: true }
     ];
+
+    // Load Game Progress from LocalStorage
+    const savedData = localStorage.getItem('CYBER_CITY_SAVE');
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        this.money = parsed.money;
+        this.pcPercent = parsed.pcPercent;
+        this.mobilePercent = parsed.mobilePercent;
+        this.daysPassed = parsed.daysPassed;
+        
+        // Restore building levels & hack status
+        this.buildings = defaultBuildings.map(b => {
+          const savedB = parsed.buildings.find(sb => sb.id === b.id);
+          if (savedB) {
+            return { ...b, level: savedB.level, requiresHack: savedB.requiresHack };
+          }
+          return b;
+        });
+      } catch (e) {
+        this.loadDefaults(defaultBuildings);
+      }
+    } else {
+      this.loadDefaults(defaultBuildings);
+    }
+  }
+
+  loadDefaults(defaultBuildings) {
+    this.money = 500;
+    this.pcPercent = 12;
+    this.mobilePercent = 25;
+    this.daysPassed = 1;
+    this.buildings = defaultBuildings;
+  }
+
+  saveGameData() {
+    const saveData = {
+      money: this.money,
+      pcPercent: this.pcPercent,
+      mobilePercent: this.mobilePercent,
+      daysPassed: this.daysPassed,
+      buildings: this.buildings.map(b => ({ id: b.id, level: b.level, requiresHack: b.requiresHack }))
+    };
+    localStorage.setItem('CYBER_CITY_SAVE', JSON.stringify(saveData));
+    
+    // Trigger "SAVED" indicator prompt
+    if (this.saveNotifyText) {
+      this.saveNotifyText.setAlpha(1);
+      this.tweens.add({
+        targets: this.saveNotifyText,
+        alpha: 0,
+        duration: 2000,
+        ease: 'Power2'
+      });
+    }
+  }
+
+  resetGameData() {
+    localStorage.removeItem('CYBER_CITY_SAVE');
+    this.scene.restart();
   }
 
   create() {
@@ -206,8 +263,28 @@ class CityManagerScene extends Phaser.Scene {
 
     this.pcText = this.add.text(20, 18, '', { font: '14px Courier', fill: '#00f0ff' });
     this.mobileText = this.add.text(180, 18, '', { font: '14px Courier', fill: '#00ffaa' });
-    this.moneyText = this.add.text(width - 180, 16, '', { font: 'bold 18px Courier', fill: '#ffaa00' });
-    this.daysText = this.add.text(width - 320, 18, '', { font: '14px Courier', fill: '#ffffff' });
+    this.moneyText = this.add.text(width - 240, 16, '', { font: 'bold 18px Courier', fill: '#ffaa00' });
+    this.daysText = this.add.text(width - 380, 18, '', { font: '14px Courier', fill: '#ffffff' });
+
+    // Save Indicator Prompt
+    this.saveNotifyText = this.add.text(width / 2 - 50, 18, '[SAVED]', {
+      font: 'bold 12px Courier',
+      fill: '#00ffaa'
+    }).setAlpha(0);
+
+    // Reset Game Progress Button
+    const resetBtn = this.add.text(width - 80, 15, 'RESET', {
+      font: 'bold 12px Courier',
+      fill: '#ffffff',
+      backgroundColor: '#ff0055',
+      padding: { x: 8, y: 5 }
+    }).setInteractive({ useHandCursor: true });
+
+    resetBtn.on('pointerdown', () => {
+      if (confirm("Reset game progress and restart?")) {
+        this.resetGameData();
+      }
+    });
 
     this.updateHUDText();
   }
@@ -302,9 +379,7 @@ class CityManagerScene extends Phaser.Scene {
     const centerX = 500;
     const centerY = 300;
 
-    // Interactive Logic Gate State
     const inputs = { L1: 0, L2: 0, L3: 0, R1: 0, R2: 0, R3: 0 };
-
     const hackContainer = this.add.container(centerX, centerY);
 
     const panelBg = this.add.graphics();
@@ -324,7 +399,6 @@ class CityManagerScene extends Phaser.Scene {
     });
 
     const drawCircuit = () => {
-      // Logic evaluation
       const leftOR = inputs.L1 || inputs.L2 ? 1 : 0;
       const leftAND = inputs.L2 && inputs.L3 ? 1 : 0;
       const leftCentralAND = leftOR && leftAND ? 1 : 0;
@@ -344,7 +418,6 @@ class CityManagerScene extends Phaser.Scene {
       return finalHACK;
     };
 
-    // Toggle Node Helper
     const createInputNode = (x, y, key) => {
       const nodeText = this.add.text(x - 10, y - 10, `${key}: 0`, {
         font: 'bold 12px Courier',
@@ -365,7 +438,6 @@ class CityManagerScene extends Phaser.Scene {
       return nodeText;
     };
 
-    // Spawn 6 logic toggle nodes
     const nL1 = createInputNode(-180, -90, 'L1');
     const nL2 = createInputNode(-180, -40, 'L2');
     const nL3 = createInputNode(-180, 10, 'L3');
@@ -374,13 +446,11 @@ class CityManagerScene extends Phaser.Scene {
     const nR2 = createInputNode(120, -40, 'R2');
     const nR3 = createInputNode(120, 10, 'R3');
 
-    // Gate Static Labels
     const g1 = this.add.text(-100, -65, '[OR]', { font: '12px Courier', fill: '#88aacc' });
     const g2 = this.add.text(-100, -15, '[AND]', { font: '12px Courier', fill: '#88aacc' });
     const g3 = this.add.text(40, -65, '[AND]', { font: '12px Courier', fill: '#88aacc' });
     const g4 = this.add.text(40, -15, '[OR]', { font: '12px Courier', fill: '#88aacc' });
 
-    // Execute Hack Button
     const execBtn = this.add.text(-100, 135, 'EXECUTE BREACH', {
       font: 'bold 16px Courier',
       fill: '#000000',
@@ -418,6 +488,9 @@ class CityManagerScene extends Phaser.Scene {
 
       sfx.playSuccessSound();
       this.emitter.explode(25, building.isoX, building.isoY - building.h);
+
+      // Auto-Save Game State to LocalStorage
+      this.saveGameData();
 
       this.updateHUDText();
       this.scene.restart();
