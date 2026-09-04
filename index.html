@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Cyber City Manager - Save System Edition</title>
+  <title>Cyber City Manager - Antivirus Threat Edition</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -75,6 +75,22 @@ class CyberAudio {
     osc.start();
     osc.stop(now + 0.45);
   }
+
+  playAlarmSound() {
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(150, now);
+    osc.frequency.setValueAtTime(100, now + 0.15);
+    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start();
+    osc.stop(now + 0.3);
+  }
 }
 
 const sfx = new CyberAudio();
@@ -87,7 +103,6 @@ class CityManagerScene extends Phaser.Scene {
   init() {
     this.pulseTimer = 0;
 
-    // Default Game State
     const defaultBuildings = [
       { id: 1, name: 'Data Center Alpha', isoX: 250, isoY: 350, w: 70, h: 90, color: 0x00f0ff, level: 1, cost: 200, income: 15, pcBoost: 5, mobileBoost: 2, requiresHack: false },
       { id: 2, name: 'Telecom Array',    isoX: 450, isoY: 420, w: 60, h: 120, color: 0xffaa00, level: 0, cost: 450, income: 35, pcBoost: 2, mobileBoost: 15, requiresHack: true },
@@ -95,7 +110,6 @@ class CityManagerScene extends Phaser.Scene {
       { id: 4, name: 'Mainframe Vault',  isoX: 850, isoY: 480, w: 90, h: 140, color: 0x00ffaa, level: 0, cost: 1500, income: 180, pcBoost: 20, mobileBoost: 20, requiresHack: true }
     ];
 
-    // Load Game Progress from LocalStorage
     const savedData = localStorage.getItem('CYBER_CITY_SAVE');
     if (savedData) {
       try {
@@ -104,8 +118,9 @@ class CityManagerScene extends Phaser.Scene {
         this.pcPercent = parsed.pcPercent;
         this.mobilePercent = parsed.mobilePercent;
         this.daysPassed = parsed.daysPassed;
+        this.threatLevel = parsed.threatLevel || 0;
+        this.isLockdown = parsed.isLockdown || false;
         
-        // Restore building levels & hack status
         this.buildings = defaultBuildings.map(b => {
           const savedB = parsed.buildings.find(sb => sb.id === b.id);
           if (savedB) {
@@ -126,6 +141,8 @@ class CityManagerScene extends Phaser.Scene {
     this.pcPercent = 12;
     this.mobilePercent = 25;
     this.daysPassed = 1;
+    this.threatLevel = 0;
+    this.isLockdown = false;
     this.buildings = defaultBuildings;
   }
 
@@ -135,11 +152,12 @@ class CityManagerScene extends Phaser.Scene {
       pcPercent: this.pcPercent,
       mobilePercent: this.mobilePercent,
       daysPassed: this.daysPassed,
+      threatLevel: this.threatLevel,
+      isLockdown: this.isLockdown,
       buildings: this.buildings.map(b => ({ id: b.id, level: b.level, requiresHack: b.requiresHack }))
     };
     localStorage.setItem('CYBER_CITY_SAVE', JSON.stringify(saveData));
     
-    // Trigger "SAVED" indicator prompt
     if (this.saveNotifyText) {
       this.saveNotifyText.setAlpha(1);
       this.tweens.add({
@@ -164,8 +182,7 @@ class CityManagerScene extends Phaser.Scene {
     this.input.once('pointerdown', () => sfx.init());
 
     this.gridGraphics = this.add.graphics();
-    
-    // Glowing Dot Particle
+
     const pGraphic = this.make.graphics({x: 0, y: 0, add: false});
     pGraphic.fillStyle(0x00f0ff, 1);
     pGraphic.fillCircle(4, 4, 4);
@@ -196,7 +213,7 @@ class CityManagerScene extends Phaser.Scene {
     const alphaPulse = 0.3 + Math.sin(this.pulseTimer) * 0.2;
     
     this.gridGraphics.clear();
-    this.gridGraphics.lineStyle(1, 0x00f0ff, alphaPulse);
+    this.gridGraphics.lineStyle(1, this.isLockdown ? 0xff0055 : 0x00f0ff, alphaPulse);
 
     for (let x = -400; x < 1400; x += 50) {
       this.gridGraphics.beginPath();
@@ -262,22 +279,42 @@ class CityManagerScene extends Phaser.Scene {
     hud.strokeLineShape(new Phaser.Geom.Line(0, 55, width, 55));
 
     this.pcText = this.add.text(20, 18, '', { font: '14px Courier', fill: '#00f0ff' });
-    this.mobileText = this.add.text(180, 18, '', { font: '14px Courier', fill: '#00ffaa' });
-    this.moneyText = this.add.text(width - 240, 16, '', { font: 'bold 18px Courier', fill: '#ffaa00' });
-    this.daysText = this.add.text(width - 380, 18, '', { font: '14px Courier', fill: '#ffffff' });
+    this.mobileText = this.add.text(170, 18, '', { font: '14px Courier', fill: '#00ffaa' });
+    this.threatText = this.add.text(320, 18, '', { font: 'bold 14px Courier', fill: '#ff0055' });
 
-    // Save Indicator Prompt
-    this.saveNotifyText = this.add.text(width / 2 - 50, 18, '[SAVED]', {
-      font: 'bold 12px Courier',
+    this.moneyText = this.add.text(width - 220, 16, '', { font: 'bold 18px Courier', fill: '#ffaa00' });
+    this.daysText = this.add.text(width - 340, 18, '', { font: '14px Courier', fill: '#ffffff' });
+
+    this.saveNotifyText = this.add.text(width / 2 - 20, 38, '[SAVED]', {
+      font: 'bold 10px Courier',
       fill: '#00ffaa'
     }).setAlpha(0);
 
-    // Reset Game Progress Button
-    const resetBtn = this.add.text(width - 80, 15, 'RESET', {
-      font: 'bold 12px Courier',
+    // Clear Traces Button
+    const purgeBtn = this.add.text(width - 150, 15, 'CLEAR TRACES ($100S)', {
+      font: 'bold 11px Courier',
+      fill: '#00f0ff',
+      backgroundColor: '#112233',
+      padding: { x: 6, y: 5 }
+    }).setInteractive({ useHandCursor: true });
+
+    purgeBtn.on('pointerdown', () => {
+      sfx.playClickSound();
+      if (this.money >= 100 && this.threatLevel > 0) {
+        this.money -= 100;
+        this.threatLevel = 0;
+        this.isLockdown = false;
+        sfx.playSuccessSound();
+        this.saveGameData();
+        this.updateHUDText();
+      }
+    });
+
+    const resetBtn = this.add.text(width - 50, 15, 'RESET', {
+      font: 'bold 11px Courier',
       fill: '#ffffff',
       backgroundColor: '#ff0055',
-      padding: { x: 8, y: 5 }
+      padding: { x: 6, y: 5 }
     }).setInteractive({ useHandCursor: true });
 
     resetBtn.on('pointerdown', () => {
@@ -292,18 +329,38 @@ class CityManagerScene extends Phaser.Scene {
   updateHUDText() {
     this.pcText.setText(`💻 PC: ${this.pcPercent}%`);
     this.mobileText.setText(`📱 MOBILE: ${this.mobilePercent}%`);
+    
+    if (this.isLockdown) {
+      this.threatText.setText(`⚠️ LOCKDOWN! (100%)`).setColor('#ff0055');
+    } else {
+      this.threatText.setText(`🛡️ THREAT: ${this.threatLevel}%`).setColor(this.threatLevel > 70 ? '#ff5500' : '#00f0ff');
+    }
+
     this.moneyText.setText(`$ ${this.money}S`);
     this.daysText.setText(`DAY ${this.daysPassed}`);
   }
 
   processEconomyTick() {
     this.daysPassed += 1;
-    let incomeGenerated = 0;
-    this.buildings.forEach(b => {
-      if (b.level > 0) incomeGenerated += b.income * b.level;
-    });
 
-    this.money += incomeGenerated;
+    // Increment Threat Level over time
+    if (!this.isLockdown) {
+      this.threatLevel = Math.min(100, this.threatLevel + 2);
+      if (this.threatLevel >= 100) {
+        this.isLockdown = true;
+        sfx.playAlarmSound();
+      }
+    }
+
+    // Process income generation only if NOT in Lockdown
+    if (!this.isLockdown) {
+      let incomeGenerated = 0;
+      this.buildings.forEach(b => {
+        if (b.level > 0) incomeGenerated += b.income * b.level;
+      });
+      this.money += incomeGenerated;
+    }
+
     this.updateHUDText();
   }
 
@@ -335,16 +392,16 @@ class CityManagerScene extends Phaser.Scene {
     });
 
     const upgradeCost = building.cost * (building.level + 1);
-    const canAfford = this.money >= upgradeCost;
+    const canAfford = this.money >= upgradeCost && !this.isLockdown;
 
     const btnBg = this.add.graphics();
     btnBg.fillStyle(canAfford ? (building.requiresHack ? 0xff0055 : 0x00f0ff) : 0x223344, 1);
     btnBg.fillRect(-160, 40, 320, 40);
 
-    const btnTextStr = building.requiresHack ? `HACK SECURITY ($${upgradeCost}S)` : `UPGRADE / BUY ($${upgradeCost}S)`;
+    const btnTextStr = this.isLockdown ? 'SYSTEM IN LOCKDOWN!' : (building.requiresHack ? `HACK SECURITY ($${upgradeCost}S)` : `UPGRADE / BUY ($${upgradeCost}S)`);
 
     const btnText = this.add.text(-140, 52, btnTextStr, {
-      font: 'bold 13px Courier',
+      font: 'bold 12px Courier',
       fill: canAfford ? '#ffffff' : '#888888'
     });
 
@@ -463,6 +520,11 @@ class CityManagerScene extends Phaser.Scene {
       if (isBreached === 1) {
         sfx.playSuccessSound();
         building.requiresHack = false;
+        
+        // Spike threat level on successful breach
+        this.threatLevel = Math.min(100, this.threatLevel + 20);
+        if (this.threatLevel >= 100) this.isLockdown = true;
+
         this.buyBuildingUpgrade(building, cost);
         hackContainer.destroy();
       }
@@ -489,9 +551,7 @@ class CityManagerScene extends Phaser.Scene {
       sfx.playSuccessSound();
       this.emitter.explode(25, building.isoX, building.isoY - building.h);
 
-      // Auto-Save Game State to LocalStorage
       this.saveGameData();
-
       this.updateHUDText();
       this.scene.restart();
     }
