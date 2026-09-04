@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Cyber City Manager - Antivirus Threat Edition</title>
+  <title>Cyber City Manager - Victory & Defeat Edition</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -31,7 +31,6 @@
 <div id="game-container"></div>
 
 <script>
-// Web Audio Synthesizer Engine
 class CyberAudio {
   constructor() {
     this.ctx = null;
@@ -102,12 +101,13 @@ class CityManagerScene extends Phaser.Scene {
 
   init() {
     this.pulseTimer = 0;
+    this.gameOver = false;
 
     const defaultBuildings = [
-      { id: 1, name: 'Data Center Alpha', isoX: 250, isoY: 350, w: 70, h: 90, color: 0x00f0ff, level: 1, cost: 200, income: 15, pcBoost: 5, mobileBoost: 2, requiresHack: false },
-      { id: 2, name: 'Telecom Array',    isoX: 450, isoY: 420, w: 60, h: 120, color: 0xffaa00, level: 0, cost: 450, income: 35, pcBoost: 2, mobileBoost: 15, requiresHack: true },
-      { id: 3, name: 'Security Hub',     isoX: 700, isoY: 320, w: 80, h: 110, color: 0xff0055, level: 0, cost: 800, income: 75, pcBoost: 12, mobileBoost: 8, requiresHack: true },
-      { id: 4, name: 'Mainframe Vault',  isoX: 850, isoY: 480, w: 90, h: 140, color: 0x00ffaa, level: 0, cost: 1500, income: 180, pcBoost: 20, mobileBoost: 20, requiresHack: true }
+      { id: 1, name: 'Data Center Alpha', isoX: 250, isoY: 350, w: 70, h: 90, color: 0x00f0ff, level: 1, cost: 200, income: 15, pcBoost: 15, mobileBoost: 10, requiresHack: false },
+      { id: 2, name: 'Telecom Array',    isoX: 450, isoY: 420, w: 60, h: 120, color: 0xffaa00, level: 0, cost: 450, income: 35, pcBoost: 20, mobileBoost: 35, requiresHack: true },
+      { id: 3, name: 'Security Hub',     isoX: 700, isoY: 320, w: 80, h: 110, color: 0xff0055, level: 0, cost: 800, income: 75, pcBoost: 30, mobileBoost: 20, requiresHack: true },
+      { id: 4, name: 'Mainframe Vault',  isoX: 850, isoY: 480, w: 90, h: 140, color: 0x00ffaa, level: 0, cost: 1500, income: 180, pcBoost: 35, mobileBoost: 35, requiresHack: true }
     ];
 
     const savedData = localStorage.getItem('CYBER_CITY_SAVE');
@@ -147,6 +147,7 @@ class CityManagerScene extends Phaser.Scene {
   }
 
   saveGameData() {
+    if (this.gameOver) return;
     const saveData = {
       money: this.money,
       pcPercent: this.pcPercent,
@@ -157,16 +158,6 @@ class CityManagerScene extends Phaser.Scene {
       buildings: this.buildings.map(b => ({ id: b.id, level: b.level, requiresHack: b.requiresHack }))
     };
     localStorage.setItem('CYBER_CITY_SAVE', JSON.stringify(saveData));
-    
-    if (this.saveNotifyText) {
-      this.saveNotifyText.setAlpha(1);
-      this.tweens.add({
-        targets: this.saveNotifyText,
-        alpha: 0,
-        duration: 2000,
-        ease: 'Power2'
-      });
-    }
   }
 
   resetGameData() {
@@ -200,7 +191,7 @@ class CityManagerScene extends Phaser.Scene {
     this.renderBuildings();
     this.createHUD(width);
 
-    this.time.addEvent({
+    this.economyTimer = this.time.addEvent({
       delay: 2000,
       callback: this.processEconomyTick,
       callbackScope: this,
@@ -259,6 +250,7 @@ class CityManagerScene extends Phaser.Scene {
 
       const hitZone = this.add.zone(0, 0, 1, 1).setInteractive(hitArea, Phaser.Geom.Polygon.Contains);
       hitZone.on('pointerdown', () => {
+        if (this.gameOver) return;
         sfx.playClickSound();
         this.openBuildingPanel(b);
       });
@@ -285,12 +277,6 @@ class CityManagerScene extends Phaser.Scene {
     this.moneyText = this.add.text(width - 220, 16, '', { font: 'bold 18px Courier', fill: '#ffaa00' });
     this.daysText = this.add.text(width - 340, 18, '', { font: '14px Courier', fill: '#ffffff' });
 
-    this.saveNotifyText = this.add.text(width / 2 - 20, 38, '[SAVED]', {
-      font: 'bold 10px Courier',
-      fill: '#00ffaa'
-    }).setAlpha(0);
-
-    // Clear Traces Button
     const purgeBtn = this.add.text(width - 150, 15, 'CLEAR TRACES ($100S)', {
       font: 'bold 11px Courier',
       fill: '#00f0ff',
@@ -299,6 +285,7 @@ class CityManagerScene extends Phaser.Scene {
     }).setInteractive({ useHandCursor: true });
 
     purgeBtn.on('pointerdown', () => {
+      if (this.gameOver) return;
       sfx.playClickSound();
       if (this.money >= 100 && this.threatLevel > 0) {
         this.money -= 100;
@@ -341,9 +328,10 @@ class CityManagerScene extends Phaser.Scene {
   }
 
   processEconomyTick() {
+    if (this.gameOver) return;
+
     this.daysPassed += 1;
 
-    // Increment Threat Level over time
     if (!this.isLockdown) {
       this.threatLevel = Math.min(100, this.threatLevel + 2);
       if (this.threatLevel >= 100) {
@@ -352,7 +340,6 @@ class CityManagerScene extends Phaser.Scene {
       }
     }
 
-    // Process income generation only if NOT in Lockdown
     if (!this.isLockdown) {
       let incomeGenerated = 0;
       this.buildings.forEach(b => {
@@ -362,6 +349,56 @@ class CityManagerScene extends Phaser.Scene {
     }
 
     this.updateHUDText();
+    this.checkGameConditions();
+  }
+
+  checkGameConditions() {
+    // VICTORY: Reached 100% on both networks
+    if (this.pcPercent >= 100 && this.mobilePercent >= 100) {
+      this.triggerEndScreen(true);
+    }
+    // DEFEAT: Locked down with less than $100S to purge traces
+    else if (this.isLockdown && this.money < 100) {
+      this.triggerEndScreen(false);
+    }
+  }
+
+  triggerEndScreen(isWin) {
+    this.gameOver = true;
+    if (this.economyTimer) this.economyTimer.remove();
+
+    const overlay = this.add.graphics();
+    overlay.fillStyle(0x000000, 0.85);
+    overlay.fillRect(0, 0, 1000, 600);
+
+    const titleColor = isWin ? '#00ffaa' : '#ff0055';
+    const titleText = isWin ? 'SYSTEM OVERRIDE SUCCESSFUL' : 'NETWORK LOCKDOWN TERMINATED';
+    const descText = isWin ? 
+      `CONGRATULATIONS OPERATIVE!\nYou achieved 100% PC and Mobile network control in ${this.daysPassed} days!` :
+      `CRITICAL BREACH DETECTED!\nSystem locked at 100% Threat with insufficient credits ($${this.money}S) to clear traces.`;
+
+    this.add.text(500, 200, titleText, {
+      font: 'bold 24px Courier',
+      fill: titleColor
+    }).setOrigin(0.5);
+
+    this.add.text(500, 280, descText, {
+      font: '14px Courier',
+      fill: '#ffffff',
+      align: 'center',
+      lineSpacing: 8
+    }).setOrigin(0.5);
+
+    const restartBtn = this.add.text(500, 380, ' RESTART SYSTEM ', {
+      font: 'bold 16px Courier',
+      fill: '#000000',
+      backgroundColor: titleColor,
+      padding: { x: 15, y: 10 }
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+    restartBtn.on('pointerdown', () => {
+      this.resetGameData();
+    });
   }
 
   openBuildingPanel(building) {
@@ -521,7 +558,6 @@ class CityManagerScene extends Phaser.Scene {
         sfx.playSuccessSound();
         building.requiresHack = false;
         
-        // Spike threat level on successful breach
         this.threatLevel = Math.min(100, this.threatLevel + 20);
         if (this.threatLevel >= 100) this.isLockdown = true;
 
@@ -553,7 +589,10 @@ class CityManagerScene extends Phaser.Scene {
 
       this.saveGameData();
       this.updateHUDText();
-      this.scene.restart();
+      this.checkGameConditions();
+      if (!this.gameOver) {
+        this.scene.restart();
+      }
     }
   }
 }
