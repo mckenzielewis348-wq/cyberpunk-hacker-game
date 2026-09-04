@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Cyber City Manager - FX Edition</title>
+  <title>Cyber City Manager - Hack Edition</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -58,21 +58,22 @@ class CyberAudio {
     osc.stop(this.ctx.currentTime + 0.08);
   }
 
-  playUpgradeSound() {
+  playSuccessSound() {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(400, now);
-    osc.frequency.setValueAtTime(600, now + 0.08);
-    osc.frequency.setValueAtTime(900, now + 0.16);
+    osc.frequency.setValueAtTime(300, now);
+    osc.frequency.setValueAtTime(500, now + 0.1);
+    osc.frequency.setValueAtTime(800, now + 0.2);
+    osc.frequency.setValueAtTime(1200, now + 0.3);
     gain.gain.setValueAtTime(0.2, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.45);
     osc.connect(gain);
     gain.connect(this.ctx.destination);
     osc.start();
-    osc.stop(now + 0.3);
+    osc.stop(now + 0.45);
   }
 }
 
@@ -91,10 +92,10 @@ class CityManagerScene extends Phaser.Scene {
     this.pulseTimer = 0;
 
     this.buildings = [
-      { id: 1, name: 'Data Center Alpha', isoX: 250, isoY: 350, w: 70, h: 90, color: 0x00f0ff, level: 1, cost: 200, income: 15, pcBoost: 5, mobileBoost: 2 },
-      { id: 2, name: 'Telecom Array',    isoX: 450, isoY: 420, w: 60, h: 120, color: 0xffaa00, level: 0, cost: 450, income: 35, pcBoost: 2, mobileBoost: 15 },
-      { id: 3, name: 'Security Hub',     isoX: 700, isoY: 320, w: 80, h: 110, color: 0xff0055, level: 0, cost: 800, income: 75, pcBoost: 12, mobileBoost: 8 },
-      { id: 4, name: 'Mainframe Vault',  isoX: 850, isoY: 480, w: 90, h: 140, color: 0x00ffaa, level: 0, cost: 1500, income: 180, pcBoost: 20, mobileBoost: 20 }
+      { id: 1, name: 'Data Center Alpha', isoX: 250, isoY: 350, w: 70, h: 90, color: 0x00f0ff, level: 1, cost: 200, income: 15, pcBoost: 5, mobileBoost: 2, requiresHack: false },
+      { id: 2, name: 'Telecom Array',    isoX: 450, isoY: 420, w: 60, h: 120, color: 0xffaa00, level: 0, cost: 450, income: 35, pcBoost: 2, mobileBoost: 15, requiresHack: true },
+      { id: 3, name: 'Security Hub',     isoX: 700, isoY: 320, w: 80, h: 110, color: 0xff0055, level: 0, cost: 800, income: 75, pcBoost: 12, mobileBoost: 8, requiresHack: true },
+      { id: 4, name: 'Mainframe Vault',  isoX: 850, isoY: 480, w: 90, h: 140, color: 0x00ffaa, level: 0, cost: 1500, income: 180, pcBoost: 20, mobileBoost: 20, requiresHack: true }
     ];
   }
 
@@ -103,20 +104,16 @@ class CityManagerScene extends Phaser.Scene {
     const height = this.cameras.main.height;
 
     this.cameras.main.setBackgroundColor('#05070a');
-
-    // Enable Web Audio on first user interaction
     this.input.once('pointerdown', () => sfx.init());
 
-    // Grid Layer
     this.gridGraphics = this.add.graphics();
     
-    // Create Neon Particle Texture Programmatically
+    // Glowing Dot Particle
     const pGraphic = this.make.graphics({x: 0, y: 0, add: false});
     pGraphic.fillStyle(0x00f0ff, 1);
     pGraphic.fillCircle(4, 4, 4);
     pGraphic.generateTexture('glowDot', 8, 8);
 
-    // Particle Emitter Setup
     this.emitter = this.add.particles(0, 0, 'glowDot', {
       speed: { min: 80, max: 200 },
       angle: { min: 0, max: 360 },
@@ -129,7 +126,6 @@ class CityManagerScene extends Phaser.Scene {
     this.renderBuildings();
     this.createHUD(width);
 
-    // Game Economy Cycle
     this.time.addEvent({
       delay: 2000,
       callback: this.processEconomyTick,
@@ -139,7 +135,6 @@ class CityManagerScene extends Phaser.Scene {
   }
 
   update(time, delta) {
-    // Pulsing Neon Grid Effect
     this.pulseTimer += delta * 0.002;
     const alphaPulse = 0.3 + Math.sin(this.pulseTimer) * 0.2;
     
@@ -164,25 +159,21 @@ class CityManagerScene extends Phaser.Scene {
       const g = this.add.graphics();
       const activeColor = b.level > 0 ? b.color : 0x223344;
 
-      // Isometric Isometric Faces
       g.fillStyle(0x0c1117, 0.95);
       g.fillTriangle(b.isoX, b.isoY, b.isoX - b.w, b.isoY - b.w/2, b.isoX, b.isoY - b.w);
       g.fillStyle(0x080d12, 0.95);
       g.fillTriangle(b.isoX, b.isoY, b.isoX + b.w, b.isoY - b.w/2, b.isoX, b.isoY - b.w);
 
-      // Roof Surface
       g.fillStyle(0x131d28, 0.95);
       g.fillTriangle(b.isoX, b.isoY - b.h, b.isoX - b.w, b.isoY - b.h - b.w/2, b.isoX, b.isoY - b.h - b.w);
       g.fillTriangle(b.isoX, b.isoY - b.h, b.isoX + b.w, b.isoY - b.h - b.w/2, b.isoX, b.isoY - b.h - b.w);
 
-      // Neon Trim Outlines
       g.lineStyle(2, activeColor, b.level > 0 ? 1 : 0.4);
       g.strokeLineShape(new Phaser.Geom.Line(b.isoX, b.isoY - b.h, b.isoX - b.w, b.isoY - b.h - b.w/2));
       g.strokeLineShape(new Phaser.Geom.Line(b.isoX, b.isoY - b.h, b.isoX + b.w, b.isoY - b.h + b.w/2));
       g.strokeLineShape(new Phaser.Geom.Line(b.isoX, b.isoY - b.h - b.w, b.isoX - b.w, b.isoY - b.h - b.w/2));
       g.strokeLineShape(new Phaser.Geom.Line(b.isoX, b.isoY - b.h - b.w, b.isoX + b.w, b.isoY - b.h - b.w/2));
 
-      // Clickable Hit Zone
       const hitArea = new Phaser.Geom.Polygon([
         b.isoX, b.isoY - b.h - b.w,
         b.isoX + b.w, b.isoY - b.h - b.w/2,
@@ -198,7 +189,6 @@ class CityManagerScene extends Phaser.Scene {
         this.openBuildingPanel(b);
       });
 
-      // Level Label with Glow
       this.add.text(b.isoX - 20, b.isoY - b.h - b.w - 20, `LVL ${b.level}`, {
         font: 'bold 12px Courier',
         fill: b.level > 0 ? '#00f0ff' : '#556677',
@@ -271,16 +261,27 @@ class CityManagerScene extends Phaser.Scene {
     const canAfford = this.money >= upgradeCost;
 
     const btnBg = this.add.graphics();
-    btnBg.fillStyle(canAfford ? 0x00f0ff : 0x223344, 1);
+    btnBg.fillStyle(canAfford ? (building.requiresHack ? 0xff0055 : 0x00f0ff) : 0x223344, 1);
     btnBg.fillRect(-160, 40, 320, 40);
 
-    const btnText = this.add.text(-140, 52, `UPGRADE / BUY ($${upgradeCost}S)`, {
-      font: 'bold 14px Courier',
-      fill: canAfford ? '#000000' : '#888888'
+    const btnTextStr = building.requiresHack ? `HACK SECURITY ($${upgradeCost}S)` : `UPGRADE / BUY ($${upgradeCost}S)`;
+
+    const btnText = this.add.text(-140, 52, btnTextStr, {
+      font: 'bold 13px Courier',
+      fill: canAfford ? '#ffffff' : '#888888'
     });
 
     const btnZone = this.add.zone(-160, 40, 320, 40).setOrigin(0).setInteractive({ useHandCursor: true });
-    btnZone.on('pointerdown', () => this.buyBuildingUpgrade(building, upgradeCost));
+    btnZone.on('pointerdown', () => {
+      if (canAfford) {
+        if (building.requiresHack) {
+          this.panelContainer.destroy();
+          this.openHackMinigame(building, upgradeCost);
+        } else {
+          this.buyBuildingUpgrade(building, upgradeCost);
+        }
+      }
+    });
 
     const closeBtn = this.add.text(150, -110, '✕', {
       font: '18px Courier',
@@ -297,6 +298,117 @@ class CityManagerScene extends Phaser.Scene {
     ]);
   }
 
+  openHackMinigame(building, cost) {
+    const centerX = 500;
+    const centerY = 300;
+
+    // Interactive Logic Gate State
+    const inputs = { L1: 0, L2: 0, L3: 0, R1: 0, R2: 0, R3: 0 };
+
+    const hackContainer = this.add.container(centerX, centerY);
+
+    const panelBg = this.add.graphics();
+    panelBg.fillStyle(0x040608, 0.98);
+    panelBg.fillRect(-220, -170, 440, 340);
+    panelBg.lineStyle(2, 0x00f0ff, 1);
+    panelBg.strokeRect(-220, -170, 440, 340);
+
+    const title = this.add.text(-200, -150, `HACK SYSTEM: ${building.name.toUpperCase()}`, {
+      font: 'bold 14px Courier',
+      fill: '#ff0055'
+    });
+
+    const outputText = this.add.text(-40, 110, 'HACK: 0', {
+      font: 'bold 20px Courier',
+      fill: '#ff0055'
+    });
+
+    const drawCircuit = () => {
+      // Logic evaluation
+      const leftOR = inputs.L1 || inputs.L2 ? 1 : 0;
+      const leftAND = inputs.L2 && inputs.L3 ? 1 : 0;
+      const leftCentralAND = leftOR && leftAND ? 1 : 0;
+
+      const rightAND = inputs.R1 && inputs.R2 ? 1 : 0;
+      const rightOR = inputs.R2 || inputs.R3 ? 1 : 0;
+      const rightCentralOR = rightAND || rightOR ? 1 : 0;
+
+      const finalHACK = leftCentralAND || rightCentralOR ? 1 : 0;
+
+      if (finalHACK === 1) {
+        outputText.setText('HACK: 1 (SUCCESS)').setColor('#00ffaa');
+      } else {
+        outputText.setText('HACK: 0 (LOCKED)').setColor('#ff0055');
+      }
+
+      return finalHACK;
+    };
+
+    // Toggle Node Helper
+    const createInputNode = (x, y, key) => {
+      const nodeText = this.add.text(x - 10, y - 10, `${key}: 0`, {
+        font: 'bold 12px Courier',
+        fill: '#00f0ff',
+        backgroundColor: '#112233',
+        padding: { x: 4, y: 4 }
+      }).setInteractive({ useHandCursor: true });
+
+      nodeText.on('pointerdown', () => {
+        sfx.playClickSound();
+        inputs[key] = inputs[key] === 0 ? 1 : 0;
+        nodeText.setText(`${key}: ${inputs[key]}`);
+        nodeText.setBackgroundColor(inputs[key] === 1 ? '#00ffaa' : '#112233');
+        nodeText.setColor(inputs[key] === 1 ? '#000000' : '#00f0ff');
+        drawCircuit();
+      });
+
+      return nodeText;
+    };
+
+    // Spawn 6 logic toggle nodes
+    const nL1 = createInputNode(-180, -90, 'L1');
+    const nL2 = createInputNode(-180, -40, 'L2');
+    const nL3 = createInputNode(-180, 10, 'L3');
+
+    const nR1 = createInputNode(120, -90, 'R1');
+    const nR2 = createInputNode(120, -40, 'R2');
+    const nR3 = createInputNode(120, 10, 'R3');
+
+    // Gate Static Labels
+    const g1 = this.add.text(-100, -65, '[OR]', { font: '12px Courier', fill: '#88aacc' });
+    const g2 = this.add.text(-100, -15, '[AND]', { font: '12px Courier', fill: '#88aacc' });
+    const g3 = this.add.text(40, -65, '[AND]', { font: '12px Courier', fill: '#88aacc' });
+    const g4 = this.add.text(40, -15, '[OR]', { font: '12px Courier', fill: '#88aacc' });
+
+    // Execute Hack Button
+    const execBtn = this.add.text(-100, 135, 'EXECUTE BREACH', {
+      font: 'bold 16px Courier',
+      fill: '#000000',
+      backgroundColor: '#00f0ff',
+      padding: { x: 15, y: 8 }
+    }).setInteractive({ useHandCursor: true });
+
+    execBtn.on('pointerdown', () => {
+      const isBreached = drawCircuit();
+      if (isBreached === 1) {
+        sfx.playSuccessSound();
+        building.requiresHack = false;
+        this.buyBuildingUpgrade(building, cost);
+        hackContainer.destroy();
+      }
+    });
+
+    const closeBtn = this.add.text(190, -160, '✕', {
+      font: '18px Courier',
+      fill: '#ffffff'
+    }).setInteractive({ useHandCursor: true });
+
+    closeBtn.on('pointerdown', () => hackContainer.destroy());
+
+    hackContainer.add([panelBg, title, outputText, nL1, nL2, nL3, nR1, nR2, nR3, g1, g2, g3, g4, execBtn, closeBtn]);
+    drawCircuit();
+  }
+
   buyBuildingUpgrade(building, cost) {
     if (this.money >= cost) {
       this.money -= cost;
@@ -304,14 +416,10 @@ class CityManagerScene extends Phaser.Scene {
       this.pcPercent = Math.min(100, this.pcPercent + building.pcBoost);
       this.mobilePercent = Math.min(100, this.mobilePercent + building.mobileBoost);
 
-      // Play Sound FX
-      sfx.playUpgradeSound();
-
-      // Trigger Neon Particle Burst on Building
+      sfx.playSuccessSound();
       this.emitter.explode(25, building.isoX, building.isoY - building.h);
 
       this.updateHUDText();
-      this.panelContainer.destroy();
       this.scene.restart();
     }
   }
